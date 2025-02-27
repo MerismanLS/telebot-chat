@@ -46,10 +46,10 @@ def starter():
     @bot.message_handler(commands=['start'])
     def start_message(message):
         callbacks.start_message(bot, message)
-        try:
-            sql_requests.check_user(message)
-        except Exception as e:
-            bot.send_message(admin_id, str(e))
+       # try:
+       #     sql_requests.check_user(message)
+       # except Exception as e:
+       #     bot.send_message(admin_id, str(e))
 
     @bot.message_handler(commands=['help'])
     def start_message(message):
