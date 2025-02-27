@@ -130,7 +130,8 @@ def notif_checker(id_tg):
     cur.execute(sql_scripts.check_notification, (id_tg, ))
     answer = cur.fetchone()
     con.close()
-    return answer[0]
+    return [False]
+#    return answer[0]
 
 def change_notif(id_tg):
     con, cur = get_con()
