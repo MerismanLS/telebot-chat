@@ -73,7 +73,9 @@ def get_all_users():
     res = ''
     for elem in users:
         res = res + str(elem[0]) + ' | '
-        res = res + elem[1] + '\n\n'
+        res = res + str(elem[1]) + ' | '
+        res = res + str(elem[2]) + ' | '
+        res = res + str(elem[3]) + '\n\n'
     con.close()
     return res
 
@@ -94,14 +96,26 @@ def delete_event(message):
         events = events_list()
         date = pendulum.from_format(message.text, 'YYYY-MM-DD')
         date = date.to_date_string()
-        print(date)
         for elem in events:
             if date == elem[0].to_date_string():
-                print("Условие пройдено")
                 cur.execute(sql_scripts.delete_event, (date, ))
                 answer = "Успешно удалено!"
                 con.commit()
                 break
+    except Exception as e:
+        answer = "еррор 404"
+    con.close()
+    return answer
+
+def delete_events_by_date(message):
+    con, cur = get_con()
+    answer = ""
+    try:
+        date = pendulum.from_format(message.text, 'YYYY-MM-DD')
+        date = date.to_date_string()
+        cur.execute(sql_scripts.delete_events_by_date, (date, ))
+        answer = "Успешно удалено!"
+        con.commit()
     except Exception as e:
         answer = "еррор 404"
     con.close()
@@ -130,12 +144,25 @@ def notif_checker(id_tg):
     cur.execute(sql_scripts.check_notification, (id_tg, ))
     answer = cur.fetchone()
     con.close()
-    return [False]
-#    return answer[0]
+    return answer[0]
 
 def change_notif(id_tg):
     con, cur = get_con()
     current = notif_checker(id_tg)
     cur.execute(sql_scripts.change_notif, (not current, id_tg))
+    con.commit()
+    con.close()
+
+def admin_checker(id_tg):
+    con, cur = get_con()
+    cur.execute(sql_scripts.check_admin, (id_tg, ))
+    answer = cur.fetchone()
+    con.close()
+    return answer[0]
+
+def change_admin(id_tg):
+    con, cur = get_con()
+    current = admin_checker(id_tg)
+    cur.execute(sql_scripts.change_admin, (not current, id_tg))
     con.commit()
     con.close()
