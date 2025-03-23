@@ -5,8 +5,6 @@ import os
 
 with open("./additional/config.json", encoding="utf-8") as a:
     config = json.load(a)
-    
-admin_ids = list(map(int, os.environ["ADMIN_IDS"].split()))
 
 def start_message(bot, message):
     home_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -20,7 +18,7 @@ def start_message(bot, message):
     else:
         notif = types.KeyboardButton(text="❌Вы не получаете рассылки❌")
         home_markup.add(notif)
-    if message.from_user.id in admin_ids:
+    if sql_requests.admin_checker(message.chat.id):
         bot.send_message(message.chat.id,
                          text=config[0]["start_admin_message"],
                          reply_markup=home_markup)

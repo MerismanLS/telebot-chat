@@ -1,0 +1,380 @@
+Index: sql/sql_requests.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from sql import sql_scripts, mark_words\r\nimport psycopg2\r\nimport pendulum\r\nimport os\r\n\r\nuser_name = os.environ[\"USER_NAME\"]\r\npassword = os.environ[\"PASSWORD\"]\r\ndbname = os.environ[\"DBNAME\"]\r\nport = os.environ[\"PORT\"]\r\nhost = os.environ[\"HOST\"]\r\n\r\ndef get_con():\r\n    con = psycopg2.connect(dbname=dbname, user=user_name,\r\n                           password=password, host=host, port=port)\r\n    cur = con.cursor()\r\n    return con, cur\r\n\r\ndef update():\r\n    con, cur = get_con()\r\n    cur.execute(\"DROP TABLE Users\")\r\n    cur.execute(\"CREATE TABLE Users (id_tg BIGINT, nickname TEXT, notif BOOLEAN DEFAULT true)\")\r\n    print(\"success\")\r\n    con.commit()\r\n    con.close()\r\n\r\ndef check_user(message):\r\n    con, cur = get_con()\r\n    id_tg = message.chat.id\r\n    username = message.from_user.username\r\n    cur.execute(sql_scripts.check_user, (id_tg, ))\r\n    result = cur.fetchall()\r\n    if len(result) == 0:\r\n        if username is None:\r\n            username = \"None\"\r\n        cur.execute(sql_scripts.add_user, (id_tg, username))\r\n        con.commit()\r\n    con.close()\r\n\r\ndef get_all_events():\r\n    cur_week = mark_words.during_the_week()\r\n    next_week = mark_words.during_the_next_week()\r\n    res = f\"Мероприятия на эту неделю:\\n\\n{cur_week}\\n\\n\\nМероприятия на следующую неделю:\\n\\n{next_week}\"\r\n    return res\r\n\r\ndef get_all_events_admin():\r\n    con, cur = get_con()\r\n    cur.execute(sql_scripts.get_all_events)\r\n    events = cur.fetchall()\r\n    res = ''\r\n    for elem in events:\r\n        res = res + str(elem[0]) + '\\n\\n'\r\n        res = res + elem[1] + '\\n\\n'\r\n        res = res + elem[2] + '\\n\\n\\n'\r\n    con.close()\r\n    return res\r\n\r\ndef events_list():\r\n    con, cur = get_con()\r\n    cur.execute(sql_scripts.get_all_events)\r\n    events = cur.fetchall()\r\n    l = []\r\n    for values in events:\r\n        date = pendulum.from_format(str(values[0]), 'YYYY-MM-DD')\r\n        date.add(hours=23, minutes=58)\r\n        l.append([date, values[1], values[2]])\r\n    con.close()\r\n    return l\r\n\r\ndef get_all_users():\r\n    con, cur = get_con()\r\n    cur.execute(sql_scripts.get_all_users)\r\n    users = cur.fetchall()\r\n    res = ''\r\n    for elem in users:\r\n        res = res + str(elem[0]) + ' | '\r\n        res = res + elem[1] + '\\n\\n'\r\n    con.close()\r\n    return res\r\n\r\ndef users_list():\r\n    con, cur = get_con()\r\n    cur.execute(sql_scripts.get_all_users)\r\n    users = cur.fetchall()\r\n    l = {}\r\n    for elem in users:\r\n        l[elem[0]] = elem[2]\r\n    con.close()\r\n    return l\r\n\r\ndef delete_event(message):\r\n    con, cur = get_con()\r\n    answer = \"\"\r\n    try:\r\n        events = events_list()\r\n        date = pendulum.from_format(message.text, 'YYYY-MM-DD')\r\n        date = date.to_date_string()\r\n        print(date)\r\n        for elem in events:\r\n            if date == elem[0].to_date_string():\r\n                print(\"Условие пройдено\")\r\n                cur.execute(sql_scripts.delete_event, (date, ))\r\n                answer = \"Успешно удалено!\"\r\n                con.commit()\r\n                break\r\n    except Exception as e:\r\n        answer = \"еррор 404\"\r\n    con.close()\r\n    return answer\r\n\r\ndef update_event(date_from, event):\r\n    con, cur = get_con()\r\n    answer = \"\"\r\n    try:\r\n        events = events_list()\r\n        date = pendulum.from_format(date_from, 'YYYY-MM-DD')\r\n        date = date.to_date_string()\r\n        for elem in events:\r\n            if date == elem[0].to_date_string():\r\n                cur.execute(sql_scripts.update_event, (event, date))\r\n                answer = \"Успешно изменено\"\r\n                con.commit()\r\n                break\r\n    except Exception as e:\r\n        answer = \"еррор 404\"\r\n    con.close()\r\n    return answer\r\n\r\ndef notif_checker(id_tg):\r\n    con, cur = get_con()\r\n    cur.execute(sql_scripts.check_notification, (id_tg, ))\r\n    answer = cur.fetchone()\r\n    con.close()\r\n    return answer[0]\r\n\r\ndef change_notif(id_tg):\r\n    con, cur = get_con()\r\n    current = notif_checker(id_tg)\r\n    cur.execute(sql_scripts.change_notif, (not current, id_tg))\r\n    con.commit()\r\n    con.close()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/sql/sql_requests.py b/sql/sql_requests.py
+--- a/sql/sql_requests.py	(revision 6d911531a2e48fedceebc79fc7b33a23ef2ea2c6)
++++ b/sql/sql_requests.py	(date 1742712605844)
+@@ -3,22 +3,20 @@
+ import pendulum
+ import os
+ 
+-user_name = os.environ["USER_NAME"]
+-password = os.environ["PASSWORD"]
+-dbname = os.environ["DBNAME"]
+-port = os.environ["PORT"]
+-host = os.environ["HOST"]
+ 
+ def get_con():
+-    con = psycopg2.connect(dbname=dbname, user=user_name,
+-                           password=password, host=host, port=port)
++    con = psycopg2.connect(dbname="telebot_db", user="Merisman",
++                           password="PoPoLiLi0909", host="telebot-merisman.db-msk0.amvera.tech", port=5432)
+     cur = con.cursor()
+     return con, cur
+ 
+ def update():
+     con, cur = get_con()
+     cur.execute("DROP TABLE Users")
+-    cur.execute("CREATE TABLE Users (id_tg BIGINT, nickname TEXT, notif BOOLEAN DEFAULT true)")
++    cur.execute("DROP TABLE Events")
++    cur.execute("CREATE TABLE Users (id_tg BIGINT, nickname TEXT, notif BOOLEAN DEFAULT true, is_admin BOOLEAN DEFAULT true)")
++    cur.execute(
++        "CREATE TABLE Events (date DATE, description TEXT, name TEXT)")
+     print("success")
+     con.commit()
+     con.close()
+@@ -73,7 +71,9 @@
+     res = ''
+     for elem in users:
+         res = res + str(elem[0]) + ' | '
+-        res = res + elem[1] + '\n\n'
++        res = res + str(elem[1]) + ' | '
++        res = res + str(elem[2]) + ' | '
++        res = res + str(elem[3]) + '\n\n'
+     con.close()
+     return res
+ 
+@@ -94,10 +94,8 @@
+         events = events_list()
+         date = pendulum.from_format(message.text, 'YYYY-MM-DD')
+         date = date.to_date_string()
+-        print(date)
+         for elem in events:
+             if date == elem[0].to_date_string():
+-                print("Условие пройдено")
+                 cur.execute(sql_scripts.delete_event, (date, ))
+                 answer = "Успешно удалено!"
+                 con.commit()
+@@ -106,6 +104,20 @@
+         answer = "еррор 404"
+     con.close()
+     return answer
++
++def delete_events_by_date(message):
++    con, cur = get_con()
++    answer = ""
++    try:
++        date = pendulum.from_format(message.text, 'YYYY-MM-DD')
++        date = date.to_date_string()
++        cur.execute(sql_scripts.delete_events_by_date, (date, ))
++        answer = "Успешно удалено!"
++        con.commit()
++    except Exception as e:
++        answer = "еррор 404"
++    con.close()
++    return answer
+ 
+ def update_event(date_from, event):
+     con, cur = get_con()
+@@ -137,4 +149,31 @@
+     current = notif_checker(id_tg)
+     cur.execute(sql_scripts.change_notif, (not current, id_tg))
+     con.commit()
+-    con.close()
+\ No newline at end of file
++    con.close()
++
++def admin_checker(id_tg):
++    con, cur = get_con()
++    cur.execute(sql_scripts.check_admin, (id_tg, ))
++    answer = cur.fetchone()
++    con.close()
++    return answer[0]
++
++def change_admin(id_tg):
++    con, cur = get_con()
++    current = admin_checker(id_tg)
++    cur.execute(sql_scripts.change_admin, (not current, id_tg))
++    con.commit()
++    con.close()
++
++con, cur = get_con()
++cur.execute("DROP TABLE Users")
++cur.execute("DROP TABLE Events")
++
++cur.execute(
++    "CREATE TABLE Users (id_tg BIGINT, nickname TEXT, notif BOOLEAN DEFAULT true, is_admin BOOLEAN DEFAULT true)")
++print("users created")
++cur.execute(
++    "CREATE TABLE Events (date DATE, description TEXT, name TEXT)")
++print("events created")
++con.commit()
++con.close()
+\ No newline at end of file
+Index: sql/sql_scripts.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>get_all_events = 'SELECT * FROM Events ORDER BY date'\r\ndelete_event = 'DELETE FROM Events WHERE date = %s'\r\nupdate_event = 'UPDATE Events SET description = %s WHERE date = %s'\r\n\r\nget_all_users = 'SELECT * FROM Users'\r\ncheck_user = 'SELECT id_tg FROM Users WHERE id_tg = %s'\r\nadd_user = 'INSERT INTO Users (id_tg, nickname) VALUES (%s, %s)'\r\n\r\ncheck_notification = 'SELECT notif FROM Users WHERE id_tg = %s'\r\nchange_notif = 'UPDATE Users SET notif = %s WHERE id_tg = %s'\r\n\r\nstructure_of_users_db = \"\"\"\r\nid_tg BIGINT,\r\nnickname TEXT,\r\nnotif BOOLEAN\r\n\"\"\"\r\n\r\nstructure_of_events_db = \"\"\"\r\ndate DATE,\r\ndescription TEXT,\r\nname TEXT\r\n\"\"\"\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/sql/sql_scripts.py b/sql/sql_scripts.py
+--- a/sql/sql_scripts.py	(revision 6d911531a2e48fedceebc79fc7b33a23ef2ea2c6)
++++ b/sql/sql_scripts.py	(date 1740680519623)
+@@ -1,6 +1,7 @@
+ get_all_events = 'SELECT * FROM Events ORDER BY date'
+ delete_event = 'DELETE FROM Events WHERE date = %s'
+ update_event = 'UPDATE Events SET description = %s WHERE date = %s'
++delete_events_by_date = 'DELETE FROM Events WHERE date <= %s'
+ 
+ get_all_users = 'SELECT * FROM Users'
+ check_user = 'SELECT id_tg FROM Users WHERE id_tg = %s'
+@@ -9,10 +10,14 @@
+ check_notification = 'SELECT notif FROM Users WHERE id_tg = %s'
+ change_notif = 'UPDATE Users SET notif = %s WHERE id_tg = %s'
+ 
++check_admin = 'SELECT is_admin FROM Users WHERE id_tg = %s'
++change_admin = 'UPDATE Users SET is_admin = %s WHERE id_tg = %s'
++
+ structure_of_users_db = """
+ id_tg BIGINT,
+ nickname TEXT,
+-notif BOOLEAN
++notif BOOLEAN,
++is_admin BOOLEAN
+ """
+ 
+ structure_of_events_db = """
+Index: vkontakte/vk_getter.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import requests\r\nimport os\r\nfrom telebot.types import InputMediaPhoto as imp\r\n\r\ntoken = os.environ[\"VK_TOKEN\"]\r\nparam = {'access_token': token, 'owner_id': 187548314_457250348, 'domain': 'litsey101', 'count': 2, 'v': 5.199}\r\nmethod = 'wall.get'\r\n\r\ndef get_last_not_pinned():\r\n    rec = requests.get(url=f'https://api.vk.com/method/{method}', params=param)\r\n    list_of_photos = []\r\n    text = \"\"\r\n    try:\r\n        if rec.json()[\"response\"][\"items\"][0][\"is_pinned\"] == 1:\r\n            text = rec.json()[\"response\"][\"items\"][1][\"text\"] + f\"\\n\\nhttps://vk.com/wall-187548314_{rec.json()[\"response\"][\"items\"][1][\"id\"]}\"\r\n            for i in range(len(rec.json()[\"response\"][\"items\"][1][\"attachments\"])):\r\n                if rec.json()[\"response\"][\"items\"][1][\"attachments\"][i][\"type\"] == \"video\":\r\n                    list_of_photos.append(imp(rec.json()[\"response\"][\"items\"][1][\"attachments\"][i][\"video\"][\"image\"][-1][\"url\"]))\r\n                else:\r\n                    list_of_photos.append(imp(rec.json()[\"response\"][\"items\"][1][\"attachments\"][i][\"photo\"][\"orig_photo\"][\"url\"]))\r\n    except:\r\n        text = rec.json()[\"response\"][\"items\"][0][\"text\"]  + f\"\\n\\nhttps://vk.com/wall-187548314_{rec.json()[\"response\"][\"items\"][0][\"id\"]}\"\r\n        for i in range(len(rec.json()[\"response\"][\"items\"][0][\"attachments\"])):\r\n            if rec.json()[\"response\"][\"items\"][0][\"attachments\"][i][\"type\"] == \"video\":\r\n                list_of_photos.append(imp(rec.json()[\"response\"][\"items\"][0][\"attachments\"][i][\"video\"][\"image\"][-1][\"url\"]))\r\n            else:\r\n                list_of_photos.append(imp(rec.json()[\"response\"][\"items\"][0][\"attachments\"][i][\"photo\"][\"orig_photo\"][\"url\"]))\r\n    return list_of_photos, text\r\n\r\n\r\ndef check_last_not_pinned():\r\n    rec = requests.get(url=f'https://api.vk.com/method/{method}', params=param)\r\n    try:\r\n        if rec.json()[\"response\"][\"items\"][0][\"is_pinned\"] == 1:\r\n            return rec.json()[\"response\"][\"items\"][1][\"id\"]\r\n    except:\r\n        return rec.json()[\"response\"][\"items\"][0][\"id\"]
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/vkontakte/vk_getter.py b/vkontakte/vk_getter.py
+--- a/vkontakte/vk_getter.py	(revision 6d911531a2e48fedceebc79fc7b33a23ef2ea2c6)
++++ b/vkontakte/vk_getter.py	(date 1740676962610)
+@@ -12,14 +12,14 @@
+     text = ""
+     try:
+         if rec.json()["response"]["items"][0]["is_pinned"] == 1:
+-            text = rec.json()["response"]["items"][1]["text"] + f"\n\nhttps://vk.com/wall-187548314_{rec.json()["response"]["items"][1]["id"]}"
++            text = rec.json()["response"]["items"][1]["text"] + f"\n\nhttps://vk.com/wall-187548314_{rec.json()['response']['items'][1]['id']}"
+             for i in range(len(rec.json()["response"]["items"][1]["attachments"])):
+                 if rec.json()["response"]["items"][1]["attachments"][i]["type"] == "video":
+                     list_of_photos.append(imp(rec.json()["response"]["items"][1]["attachments"][i]["video"]["image"][-1]["url"]))
+                 else:
+                     list_of_photos.append(imp(rec.json()["response"]["items"][1]["attachments"][i]["photo"]["orig_photo"]["url"]))
+     except:
+-        text = rec.json()["response"]["items"][0]["text"]  + f"\n\nhttps://vk.com/wall-187548314_{rec.json()["response"]["items"][0]["id"]}"
++        text = rec.json()["response"]["items"][0]["text"]  + f"\n\nhttps://vk.com/wall-187548314_{rec.json()['response']['items'][0]['id']}"
+         for i in range(len(rec.json()["response"]["items"][0]["attachments"])):
+             if rec.json()["response"]["items"][0]["attachments"][i]["type"] == "video":
+                 list_of_photos.append(imp(rec.json()["response"]["items"][0]["attachments"][i]["video"]["image"][-1]["url"]))
+Index: bot/callbacks.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>from telebot import types\r\nimport json\r\nfrom sql import sql_requests\r\nimport os\r\n\r\nwith open(\"./additional/config.json\", encoding=\"utf-8\") as a:\r\n    config = json.load(a)\r\n    \r\nadmin_ids = list(map(int, os.environ[\"ADMIN_IDS\"].split()))\r\n\r\ndef start_message(bot, message):\r\n    home_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)\r\n    books = types.KeyboardButton(text=\"\uD83D\uDCD6Учебники\uD83D\uDCD6\")\r\n    events = types.KeyboardButton(text=\"\uD83C\uDFADМероприятия\uD83C\uDFAD\")\r\n    home_markup.add(books)\r\n    home_markup.add(events)\r\n    if sql_requests.notif_checker(message.chat.id):\r\n        notif = types.KeyboardButton(text=\"✅Вы получаете рассылки✅\")\r\n        home_markup.add(notif)\r\n    else:\r\n        notif = types.KeyboardButton(text=\"❌Вы не получаете рассылки❌\")\r\n        home_markup.add(notif)\r\n    if message.from_user.id in admin_ids:\r\n        bot.send_message(message.chat.id,\r\n                         text=config[0][\"start_admin_message\"],\r\n                         reply_markup=home_markup)\r\n    else:\r\n\r\n        bot.send_message(message.chat.id,\r\n                         text=config[0][\"start_message\"],\r\n                         reply_markup=home_markup)\r\n\r\ndef change_notif(bot, message):\r\n    home_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)\r\n    books = types.KeyboardButton(text=\"\uD83D\uDCD6Учебники\uD83D\uDCD6\")\r\n    events = types.KeyboardButton(text=\"\uD83C\uDFADМероприятия\uD83C\uDFAD\")\r\n    home_markup.add(books)\r\n    home_markup.add(events)\r\n    if sql_requests.notif_checker(message.chat.id):\r\n        notif = types.KeyboardButton(text=\"✅Вы получаете рассылки✅\")\r\n        home_markup.add(notif)\r\n    else:\r\n        notif = types.KeyboardButton(text=\"❌Вы не получаете рассылки❌\")\r\n        home_markup.add(notif)\r\n    bot.send_message(message.chat.id, \"Статус рассылки успешно изменён\", reply_markup=home_markup)\r\n\r\ndef help_message(bot, message):\r\n    bot.send_message(message.chat.id,\r\n                        text=config[0][\"help_message\"])\r\n\r\ndef about_message(bot, message):\r\n    bot.send_message(message.chat.id,\r\n                         text=config[0][\"about_message\"])\r\n\r\ndef timetable(bot, message):\r\n    inline_markup = types.InlineKeyboardMarkup()\r\n    t_tb = types.InlineKeyboardButton(text=\"Расписание\", url=\"https://raspisanie.nikasoft.ru/27701164.html\")\r\n    inline_markup.add(t_tb)\r\n    bot.send_message(message.chat.id, \"Расписание лицея\", reply_markup=inline_markup)\r\n\r\ndef universities(bot, message):\r\n    inline_markup = types.InlineKeyboardMarkup()\r\n    t_tb = types.InlineKeyboardButton(text=\"Поступление\", url=\"https://propostuplenie.ru/vuzi/\")\r\n    inline_markup.add(t_tb)\r\n    bot.send_message(message.chat.id, \"Думаю, этот сайт поможет вам с поступлением\", reply_markup=inline_markup)\r\n\r\ndef website(bot, message):\r\n    inline_markup = types.InlineKeyboardMarkup()\r\n    t_tb = types.InlineKeyboardButton(text=\"Сайт\", url=\"https://litsey101.gosuslugi.ru\")\r\n    inline_markup.add(t_tb)\r\n    bot.send_message(message.chat.id, \"Сайт лицея\", reply_markup=inline_markup)\r\n\r\ndef vkgroup(bot, message):\r\n    inline_markup = types.InlineKeyboardMarkup()\r\n    t_tb = types.InlineKeyboardButton(text=\"Вконтакте\", url=\"https://vk.com/litsey101\")\r\n    inline_markup.add(t_tb)\r\n    bot.send_message(message.chat.id, \"Группа лицея во Вконтакте\", reply_markup=inline_markup)\r\n\r\ndef cit(bot, message):\r\n    inline_markup = types.InlineKeyboardMarkup()\r\n    t_tb = types.InlineKeyboardButton(text=\"Сет. город\", url=\"https://sgo.cit73.ru/\")\r\n    inline_markup.add(t_tb)\r\n    bot.send_message(message.chat.id, \"Сайт сетевого города\", reply_markup=inline_markup)\r\n\r\ndef events_admin(bot, message):\r\n    admins_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)\r\n    deleting = types.KeyboardButton(text=\"❌Удалить мероприятие❌\")\r\n    updating = types.KeyboardButton(text=\"\uD83D\uDFE1Изменить мероприятие\uD83D\uDFE1\")\r\n    home = types.KeyboardButton(\"\uD83C\uDFE0Домой\uD83C\uDFE0\")\r\n    admins_markup.add(deleting)\r\n    admins_markup.add(updating)\r\n    admins_markup.add(home)\r\n    bot.send_message(message.chat.id,\r\n                     text=\"Администратор, прошу, выберите действие:\",\r\n                     reply_markup=admins_markup)\r\n\r\ndef home_page(bot, message):\r\n    home_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)\r\n    books = types.KeyboardButton(text=\"\uD83D\uDCD6Учебники\uD83D\uDCD6\")\r\n    events = types.KeyboardButton(text=\"\uD83C\uDFADМероприятия\uD83C\uDFAD\")\r\n    home_markup.add(books)\r\n    home_markup.add(events)\r\n    if sql_requests.notif_checker(message.chat.id):\r\n        notif = types.KeyboardButton(text=\"✅Вы получаете рассылки✅\")\r\n        home_markup.add(notif)\r\n    else:\r\n        notif = types.KeyboardButton(text=\"❌Вы не получаете рассылки❌\")\r\n        home_markup.add(notif)\r\n    bot.send_message(message.chat.id,\r\n                         text=config[0][\"home_message\"],\r\n                         reply_markup=home_markup)\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/bot/callbacks.py b/bot/callbacks.py
+--- a/bot/callbacks.py	(revision 6d911531a2e48fedceebc79fc7b33a23ef2ea2c6)
++++ b/bot/callbacks.py	(date 1740678385298)
+@@ -5,8 +5,6 @@
+ 
+ with open("./additional/config.json", encoding="utf-8") as a:
+     config = json.load(a)
+-    
+-admin_ids = list(map(int, os.environ["ADMIN_IDS"].split()))
+ 
+ def start_message(bot, message):
+     home_markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+@@ -20,7 +18,7 @@
+     else:
+         notif = types.KeyboardButton(text="❌Вы не получаете рассылки❌")
+         home_markup.add(notif)
+-    if message.from_user.id in admin_ids:
++    if sql_requests.admin_checker(message.chat.id):
+         bot.send_message(message.chat.id,
+                          text=config[0]["start_admin_message"],
+                          reply_markup=home_markup)
+Index: bot/bot_main.py
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>import time\nimport os\nimport telebot\nimport schedule\nimport multiprocessing as mp\nfrom chatbot import chatbot\nfrom bot import callbacks\nfrom sql import sql_requests\nfrom yadisk_getter import yadisk_getter\nfrom vkontakte import vk_getter\nfrom sql import mark_words\n\nsaved_id = 3177\n\nadmin_id = int(os.environ[\"ADMIN_ID\"])\nadmin_ids = list(map(int, os.environ[\"ADMIN_IDS\"].split()))\ntoken = os.environ[\"TG_TOKEN\"]\n\n\nbot = telebot.TeleBot(token)\n\ndef scheduled_update():\n    global saved_id\n    try:\n        if vk_getter.check_last_not_pinned() != saved_id:\n            users = sql_requests.users_list()\n            for id, notif in users.items():\n                try:\n                    if notif:\n                        list_of_photos, text = vk_getter.get_last_not_pinned()\n                        bot.send_media_group(id, list_of_photos)\n                        bot.send_message(id, text)\n                except Exception as e:\n                    bot.send_message(admin_id, str(e))\n            saved_id = vk_getter.check_last_not_pinned()\n    except Exception as e:\n        bot.send_message(admin_id, str(e))\n\ndef run_scheduler():\n    schedule.every(30).minutes.do(scheduled_update)\n    while True:\n        schedule.run_pending()\n        time.sleep(1)\n\ndef starter():\n    @bot.message_handler(commands=['start'])\n    def start_message(message):\n        callbacks.start_message(bot, message)\n        try:\n            sql_requests.check_user(message)\n        except Exception as e:\n            bot.send_message(admin_id, str(e))\n\n    @bot.message_handler(commands=['help'])\n    def start_message(message):\n        callbacks.help_message(bot, message)\n\n    @bot.message_handler(commands=['about'])\n    def start_message(message):\n        callbacks.about_message(bot, message)\n\n    @bot.message_handler(content_types=['photo', 'audio', 'sticker', 'video'])\n    def send_chatbot_photo(message):\n        message_id = message.chat.id\n        bot.send_message(message_id, \"К сожалению, я пока не могу работать с такими форматами сообщений)\")\n\n    @bot.message_handler(content_types=['text'])\n    def ultimate(message):\n        user_message = message.text.lower()\n        message_id = message.chat.id\n        if message.text == \"\uD83C\uDFE0Домой\uD83C\uDFE0\":\n            callbacks.home_page(bot, message)\n        elif message.text == \"\uD83D\uDCD6Учебники\uD83D\uDCD6\":\n            bot.send_message(message_id, yadisk_getter.get_all_books())\n        elif message.text == \"\uD83C\uDFADМероприятия\uD83C\uDFAD\":\n            if message.from_user.id in admin_ids:\n                bot.send_message(message_id, sql_requests.get_all_events())\n                callbacks.events_admin(bot, message)\n            else:\n                text = mark_words.get_5_nearest()\n                bot.send_message(message_id, text)\n        elif message.text == \"✅Вы получаете рассылки✅\" or message.text == \"❌Вы не получаете рассылки❌\":\n            sql_requests.change_notif(message_id)\n            callbacks.change_notif(bot, message)\n        elif message.text == \"❌Удалить мероприятие❌\":\n            msg = bot.send_message(message_id, \"Введи дату в формате ГГГГ-ММ-ДД\")\n            bot.register_next_step_handler(msg, deleting_sql)\n        elif message.text == \"\uD83D\uDFE1Изменить мероприятие\uD83D\uDFE1\":\n            msg = bot.send_message(message_id, \"Пример сообщения для изменения мероприятия:\\nГГГГ-ММ-ДД\\n(Новое описание мероприятия)\")\n            bot.register_next_step_handler(msg, updating_sql)\n\n        elif \"10\" in user_message and \"информатик\" in user_message:\n            bot.send_message(message_id, yadisk_getter.info_10())\n        elif \"11\" in user_message and \"информатик\" in user_message:\n            bot.send_message(message_id, yadisk_getter.info_11())\n        elif \"10\" in user_message and \"английск\" in user_message:\n            bot.send_message(message_id, yadisk_getter.english_10())\n        elif \"11\" in user_message and \"английск\" in user_message:\n            bot.send_message(message_id, yadisk_getter.english_11())\n        elif \"10\" in user_message and \"физик\" in user_message:\n            bot.send_message(message_id, yadisk_getter.physics_10())\n        elif \"11\" in user_message and \"физик\" in user_message:\n            bot.send_message(message_id, yadisk_getter.physics_11())\n        elif \"10\" in user_message and \"хими\" in user_message:\n            bot.send_message(message_id, yadisk_getter.chemistry_10())\n        elif \"11\" in user_message and \"хими\" in user_message:\n            bot.send_message(message_id, yadisk_getter.chemistry_11())\n        elif \"10\" in user_message and (\"обществознан\" in user_message or \"обществ\" in user_message):\n            bot.send_message(message_id, yadisk_getter.social_10())\n        elif \"11\" in user_message and (\"обществознан\" in user_message or \"обществ\" in user_message):\n            bot.send_message(message_id, yadisk_getter.social_11())\n\n        elif \"алгебр\" in user_message:\n            bot.send_message(message_id, yadisk_getter.algebra())\n        elif \"географ\" in user_message:\n            bot.send_message(message_id, yadisk_getter.geog())\n        elif \"биолог\" in user_message:\n            bot.send_message(message_id, yadisk_getter.biology())\n        elif \"геометр\" in user_message:\n            bot.send_message(message_id, yadisk_getter.geom())\n        elif \"русск\" in user_message:\n            bot.send_message(message_id, yadisk_getter.russian())\n\n        elif \"расписан\" in user_message:\n            callbacks.timetable(bot, message)\n\n        elif \"поступление\" in user_message or \"поступать\" in user_message or \"поступить\" in user_message:\n            callbacks.universities(bot, message)\n\n        elif \"последн\" in user_message and \"новост\" in user_message:\n            try:\n                list_of_photos, text = vk_getter.get_last_not_pinned()\n                bot.send_media_group(message_id, list_of_photos)\n                bot.send_message(message_id, text)\n            except Exception as e:\n                bot.send_message(admin_id, \"error\")\n                bot.send_message(admin_id, str(e))\n\n        elif \"сайт\" in user_message and \"лице\" in user_message:\n            callbacks.website(bot, message)\n\n        elif \"вк\" in user_message and \"групп\" in user_message:\n            callbacks.vkgroup(bot, message)\n\n        elif (\"дз\" in user_message or \"домашк\" in user_message or\n              (\"домашн\" in user_message and \"работ\" in user_message)\n              or (\"сетев\" in user_message and \"город\" in user_message)\n              or \"сетевой\" in user_message):\n            callbacks.cit(bot, message)\n\n        elif \"покажи всех\" in user_message:\n            try:\n                if message.from_user.id in admin_ids:\n                    bot.send_message(message_id, sql_requests.get_all_users())\n                else:\n                    bot.send_message(message_id, \"Чта?\")\n            except Exception as e:\n                bot.send_message(admin_id, str(e))\n\n        elif message.text == \"покажи все мероприятия\":\n            if message.from_user.id in admin_ids:\n                bot.send_message(message_id, sql_requests.get_all_events_admin())\n            else:\n                bot.send_message(message_id, \"Чта?\")\n\n        elif \"обнови новости\" in user_message:\n            if message.from_user.id in admin_ids:\n                scheduled_update()\n            else:\n                bot.send_message(message_id, \"Чта?\")\n\n        elif \"сегодн\" in user_message and (\"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.get_today()\n            bot.send_message(message_id, text)\n\n        elif \"завтр\" in user_message and (\"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.get_tomorrow()\n            bot.send_message(message_id, text)\n\n        elif \"послезавтр\" in user_message and (\"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.get_after_tomorrow()\n            bot.send_message(message_id, text)\n\n        elif \"недел\" in user_message and (\"эту\" in user_message or \"этой\" in user_message) and (\n                \"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.during_the_week()\n            bot.send_message(message_id, text)\n\n        elif \"недел\" in user_message and \"следующ\" in user_message and (\n                \"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.during_the_next_week()\n            bot.send_message(message_id, text)\n\n        elif \"месяц\" in user_message and (\"этом\" in user_message or \"этого\" in user_message) and (\n                \"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.during_the_month()\n            bot.send_message(message_id, text)\n\n        elif \"месяц\" in user_message and \"следующ\" in user_message and (\n                \"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.during_the_next_month()\n            bot.send_message(message_id, text)\n\n        elif \"год\" in user_message and (\"этом\" in user_message or \"этого\" in user_message) and (\n                \"событ\" in user_message or \"мероприят\" in user_message):\n            text = mark_words.during_the_year()\n            bot.send_message(message_id, text)\n\n        else:\n            msg = bot.send_message(message_id, \"Запрос отправлен в нейросеть\")\n            bot.delete_message(msg.chat.id, msg.message_id)\n            bot.send_message(message_id, chatbot.question(message))\n\n    def deleting_sql(message):\n        message_id = message.chat.id\n        try:\n            bot.send_message(message_id, sql_requests.delete_event(message))\n        except Exception as e:\n            bot.send_message(admin_id, str(e))\n\n    def updating_sql(message):\n        message_id = message.chat.id\n        try:\n            date = message.text[0:10:]\n            event = message.text[11::]\n            bot.send_message(message_id, sql_requests.update_event(date, event))\n        except Exception as e:\n            bot.send_message(admin_id, str(e))\n\n    process = mp.Process(target=run_scheduler)\n    process.start()\n    bot.polling(non_stop=True)\n    process.join()
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/bot/bot_main.py b/bot/bot_main.py
+--- a/bot/bot_main.py	(revision 6d911531a2e48fedceebc79fc7b33a23ef2ea2c6)
++++ b/bot/bot_main.py	(date 1740680612507)
+@@ -13,10 +13,8 @@
+ saved_id = 3177
+ 
+ admin_id = int(os.environ["ADMIN_ID"])
+-admin_ids = list(map(int, os.environ["ADMIN_IDS"].split()))
+ token = os.environ["TG_TOKEN"]
+ 
+-
+ bot = telebot.TeleBot(token)
+ 
+ def scheduled_update():
+@@ -45,20 +43,80 @@
+ def starter():
+     @bot.message_handler(commands=['start'])
+     def start_message(message):
+-        callbacks.start_message(bot, message)
+         try:
+             sql_requests.check_user(message)
+         except Exception as e:
+             bot.send_message(admin_id, str(e))
++        callbacks.start_message(bot, message)
+ 
+     @bot.message_handler(commands=['help'])
+-    def start_message(message):
++    def help_message(message):
+         callbacks.help_message(bot, message)
+ 
+     @bot.message_handler(commands=['about'])
+-    def start_message(message):
++    def about_message(message):
+         callbacks.about_message(bot, message)
+ 
++    @bot.message_handler(commands=['sau'])
++    def show_all_users(message):
++        try:
++            if sql_requests.admin_checker(message.chat.id):
++                bot.send_message(message.chat.id, sql_requests.get_all_users())
++            else:
++                bot.send_message(message.chat.id, "Чта?")
++        except Exception as e:
++            bot.send_message(admin_id, str(e))
++
++    @bot.message_handler(commands=['sae'])
++    def show_all_events(message):
++        try:
++            if sql_requests.admin_checker(message.chat.id):
++                bot.send_message(message.chat.id, sql_requests.get_all_events_admin())
++                callbacks.events_admin(bot, message)
++            else:
++                bot.send_message(message.chat.id, "Чта?")
++        except Exception as e:
++            bot.send_message(admin_id, str(e))
++
++    @bot.message_handler(commands=['de'])
++    def delete_events(message):
++        if sql_requests.admin_checker(message.chat.id):
++            msg = bot.send_message(message.chat.id, "Введите до какой даты (в формате ГГГГ-ММ-ДД) включительно удалить мероприятия")
++            bot.register_next_step_handler(msg, deleting_events_by_date)
++        else:
++            bot.send_message(message.chat.id, "Чта?")
++
++    def deleting_events_by_date(message):
++        try:
++            bot.send_message(message.chat.id,
++                             sql_requests.delete_events_by_date(message))
++        except:
++            bot.send_message(message.chat.id,
++                             "Что-то пошло не так, вероятно, такого пользователя не существует в БД :(")
++
++    @bot.message_handler(commands=['ca'])
++    def change_admin(message):
++        if sql_requests.admin_checker(message.chat.id):
++            msg = bot.send_message(message.chat.id, "Введите ID пользователя, чьи права вы хотите изменить")
++            bot.register_next_step_handler(msg, changing_admin)
++        else:
++            bot.send_message(message.chat.id, "Чта?")
++
++    def changing_admin(message):
++        id_tg = int(message.text)
++        try:
++            sql_requests.change_admin(id_tg)
++            bot.send_message(message.chat.id, f"Статус пользователя успешно изменён на {sql_requests.admin_checker(id_tg)}")
++        except:
++            bot.send_message(message.chat.id, "Что-то пошло не так, вероятно, такого пользователя не существует в БД :(")
++
++    @bot.message_handler(commands=['un'])
++    def update_news(message):
++        if sql_requests.admin_checker(message.chat.id):
++            scheduled_update()
++        else:
++            bot.send_message(message.chat.id, "Чта?")
++
+     @bot.message_handler(content_types=['photo', 'audio', 'sticker', 'video'])
+     def send_chatbot_photo(message):
+         message_id = message.chat.id
+@@ -73,7 +131,7 @@
+         elif message.text == "📖Учебники📖":
+             bot.send_message(message_id, yadisk_getter.get_all_books())
+         elif message.text == "🎭Мероприятия🎭":
+-            if message.from_user.id in admin_ids:
++            if sql_requests.admin_checker(message.chat.id):
+                 bot.send_message(message_id, sql_requests.get_all_events())
+                 callbacks.events_admin(bot, message)
+             else:
+@@ -83,11 +141,17 @@
+             sql_requests.change_notif(message_id)
+             callbacks.change_notif(bot, message)
+         elif message.text == "❌Удалить мероприятие❌":
+-            msg = bot.send_message(message_id, "Введи дату в формате ГГГГ-ММ-ДД")
+-            bot.register_next_step_handler(msg, deleting_sql)
++            if sql_requests.admin_checker(message.chat.id):
++                msg = bot.send_message(message_id, "Введи дату в формате ГГГГ-ММ-ДД")
++                bot.register_next_step_handler(msg, deleting_sql)
++            else:
++                bot.send_message(message.chat.id, "Чта?")
+         elif message.text == "🟡Изменить мероприятие🟡":
+-            msg = bot.send_message(message_id, "Пример сообщения для изменения мероприятия:\nГГГГ-ММ-ДД\n(Новое описание мероприятия)")
+-            bot.register_next_step_handler(msg, updating_sql)
++            if sql_requests.admin_checker(message.chat.id):
++                msg = bot.send_message(message_id, "Пример сообщения для изменения мероприятия:\nГГГГ-ММ-ДД\n(Новое описание мероприятия)")
++                bot.register_next_step_handler(msg, updating_sql)
++            else:
++                bot.send_message(message.chat.id, "Чта?")
+ 
+         elif "10" in user_message and "информатик" in user_message:
+             bot.send_message(message_id, yadisk_getter.info_10())
+@@ -148,27 +212,6 @@
+               or "сетевой" in user_message):
+             callbacks.cit(bot, message)
+ 
+-        elif "покажи всех" in user_message:
+-            try:
+-                if message.from_user.id in admin_ids:
+-                    bot.send_message(message_id, sql_requests.get_all_users())
+-                else:
+-                    bot.send_message(message_id, "Чта?")
+-            except Exception as e:
+-                bot.send_message(admin_id, str(e))
+-
+-        elif message.text == "покажи все мероприятия":
+-            if message.from_user.id in admin_ids:
+-                bot.send_message(message_id, sql_requests.get_all_events_admin())
+-            else:
+-                bot.send_message(message_id, "Чта?")
+-
+-        elif "обнови новости" in user_message:
+-            if message.from_user.id in admin_ids:
+-                scheduled_update()
+-            else:
+-                bot.send_message(message_id, "Чта?")
+-
+         elif "сегодн" in user_message and ("событ" in user_message or "мероприят" in user_message):
+             text = mark_words.get_today()
+             bot.send_message(message_id, text)
+@@ -208,8 +251,8 @@
+ 
+         else:
+             msg = bot.send_message(message_id, "Запрос отправлен в нейросеть")
++            bot.send_message(message_id, chatbot.question(message))
+             bot.delete_message(msg.chat.id, msg.message_id)
+-            bot.send_message(message_id, chatbot.question(message))
+ 
+     def deleting_sql(message):
+         message_id = message.chat.id

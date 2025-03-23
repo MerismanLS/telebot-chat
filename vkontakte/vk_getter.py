@@ -12,14 +12,14 @@ def get_last_not_pinned():
     text = ""
     try:
         if rec.json()["response"]["items"][0]["is_pinned"] == 1:
-            text = rec.json()["response"]["items"][1]["text"] + f"\n\nhttps://vk.com/wall-187548314_{rec.json()["response"]["items"][1]["id"]}"
+            text = rec.json()["response"]["items"][1]["text"] + f"\n\nhttps://vk.com/wall-187548314_{rec.json()['response']['items'][1]['id']}"
             for i in range(len(rec.json()["response"]["items"][1]["attachments"])):
                 if rec.json()["response"]["items"][1]["attachments"][i]["type"] == "video":
                     list_of_photos.append(imp(rec.json()["response"]["items"][1]["attachments"][i]["video"]["image"][-1]["url"]))
                 else:
                     list_of_photos.append(imp(rec.json()["response"]["items"][1]["attachments"][i]["photo"]["orig_photo"]["url"]))
     except:
-        text = rec.json()["response"]["items"][0]["text"]  + f"\n\nhttps://vk.com/wall-187548314_{rec.json()["response"]["items"][0]["id"]}"
+        text = rec.json()["response"]["items"][0]["text"]  + f"\n\nhttps://vk.com/wall-187548314_{rec.json()['response']['items'][0]['id']}"
         for i in range(len(rec.json()["response"]["items"][0]["attachments"])):
             if rec.json()["response"]["items"][0]["attachments"][i]["type"] == "video":
                 list_of_photos.append(imp(rec.json()["response"]["items"][0]["attachments"][i]["video"]["image"][-1]["url"]))
